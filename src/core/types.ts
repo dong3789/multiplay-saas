@@ -50,8 +50,8 @@ export interface CoreContext {
   broadcastRoom(room: Room): void;
   /** room 전원에게 임의 메시지 브로드캐스트 (exceptId 제외 가능) */
   broadcast(room: Room, msg: Record<string, unknown>, exceptId?: string): void;
-  /** 매치 종료 처리: end 브로드캐스트 → ended → resetDelayMs 후 로비 복귀 */
-  endRoom(room: Room, winner: string, reason: string): void;
+  /** 매치 종료 처리: end 브로드캐스트(extra 병합) → ended → resetDelayMs 후 로비 복귀 */
+  endRoom(room: Room, winner: string, reason: string, extra?: Record<string, unknown>): void;
   /** 로비 플레이어 목록의 공개 형태 (모듈이 확장 가능) */
   publicPlayer(room: Room, p: Player): Record<string, unknown>;
 }
@@ -76,8 +76,13 @@ export interface GameModule {
   defaults?(): { config?: Record<string, any>; state?: Record<string, any> };
   /** 로비에서 공개할 플레이어 필드 확장 */
   publicPlayer?(room: Room, p: Player): Record<string, unknown>;
-  /** 호스트가 로비에서 config를 바꿀 때 검증/정규화. true면 수용. */
-  onConfigChange?(room: Room, player: Player, key: string, value: unknown): boolean;
+  /**
+   * 호스트가 로비에서 config를 바꿀 때 검증/정규화.
+   * - false 반환: 거부 (반영/브로드캐스트 없음)
+   * - true/undefined 반환: value를 그대로 반영
+   * - 그 외 값 반환: 그 값으로 정규화해 반영
+   */
+  onConfigChange?(room: Room, player: Player, key: string, value: unknown): unknown;
   /** 토큰 외 수단으로 재점령 가능한 유령 좌석 찾기 (예: 닉네임 일치) */
   findReclaimable?(room: Room, player: Player): Player | null;
   onRoomCreate?(room: Room): void;

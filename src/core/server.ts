@@ -61,7 +61,7 @@ export class MultiplayServer {
       send: (player, msg) => this.send(player.ws, msg),
       broadcastRoom: (room) => this.broadcastRoom(room),
       broadcast: (room, msg, exceptId) => this.broadcast(room, msg, exceptId),
-      endRoom: (room, winner, reason) => this.endRoom(room, winner, reason),
+      endRoom: (room, winner, reason, extra) => this.endRoom(room, winner, reason, extra),
       publicPlayer: (room, p) => this.publicPlayer(room, p),
     };
   }
@@ -205,10 +205,11 @@ export class MultiplayServer {
     }
     if (t === 'config' && room.hostId === player.id && room.phase === 'lobby') {
       const key = String(msg.key || '').slice(0, 24);
-      if (key && mod.onConfigChange?.(room, player, key, msg.value) !== false) {
-        room.config[key] = msg.value;
-        this.broadcastRoom(room);
-      }
+      if (!key) return;
+      const result = mod.onConfigChange?.(room, player, key, msg.value);
+      if (result === false) return; // 모듈이 거부
+      room.config[key] = result === true || result === undefined ? msg.value : result;
+      this.broadcastRoom(room);
       return;
     }
     if (t === 'start' && room.hostId === player.id && room.phase !== 'playing') {
@@ -401,11 +402,11 @@ export class MultiplayServer {
 
   // ---------- phase helpers ----------
 
-  private endRoom(room: Room, winner: string, reason: string) {
+  private endRoom(room: Room, winner: string, reason: string, extra?: Record<string, unknown>) {
     if (room.phase !== 'playing') return;
     const mod = this.modules.get(room.gameId);
     room.phase = 'ended';
-    this.broadcast(room, { t: 'end', winner, reason, state: undefined });
+    this.broadcast(room, { t: 'end', winner, reason, ...extra });
     const delay = mod?.resetDelayMs ?? 800;
     setTimeout(() => {
       if (!this.rooms.has(room.code) || room.phase !== 'ended') return;

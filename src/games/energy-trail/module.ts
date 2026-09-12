@@ -74,8 +74,7 @@ export function createEnergyTrailModule(ctx: CoreContext): GameModule {
   const isOut = (p: Player) => !!p.state.out;
 
   function end(room: Room, winner: string, reason: string) {
-    ctx.broadcast(room, { t: 'end', winner, reason, score: room.state.score });
-    ctx.endRoom(room, winner, reason);
+    ctx.endRoom(room, winner, reason, { score: room.state.score });
   }
 
   return {
@@ -93,13 +92,10 @@ export function createEnergyTrailModule(ctx: CoreContext): GameModule {
       out: isOut(p),
     }),
 
-    onConfigChange: (room, _player, key, value) => {
+    onConfigChange: (_room, _player, key, value) => {
       if (key === 'map' && typeof value === 'string') return true;
-      if (key === 'mode') {
-        room.config.mode = value === 'classic' ? 'classic' : 'items';
-        return false; // 이미 정규화해 반영했으므로 코어 반영은 스킵
-      }
-      return false;
+      if (key === 'mode') return value === 'classic' ? 'classic' : 'items'; // 정규화 값 반영
+      return false; // 그 외 키는 거부
     },
 
     // 닉네임이 유일하면 유령 좌석 재점령 허용 (기존 join-policy의 findGhostByUniqueName)
