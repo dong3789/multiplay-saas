@@ -92,6 +92,40 @@ mp.on('room', (room) => renderLobby(room));
 mp.on('peers', (m) => renderPlayers(m.list));
 ```
 
+## 테스트 구조
+
+테스트 가능성은 설계 제약이다: **GameModule은 CoreContext로만 통신**하므로 서버·소켓 없이 룰을 검증할 수 있다.
+
+```
+test/
+├── energy-trail.unit.test.ts   단위 (36개) — mock ctx로 게임 룰 검증, 서버 불필요
+├── smoke.mjs                   통합 (12개) — 실서버 기동, create→join→start→catch→resume
+└── et-compat.mjs               통합 (7개)  — energy-trail 클라이언트 wire format 호환성
+
+src/testing/                    테스트킷 (새 게임 모듈도 그대로 재사용)
+├── mock-context.ts             MockCoreContext — send/broadcast/endRoom을 기록
+└── fixtures.ts                 makePlayer / makeRoom / makeStartedRoom / byRole
+```
+
+```bash
+npm test                # 단위 + 통합 전체
+npm run test:unit       # 단위만 (빠름, 룰 변경 시)
+npm run test:integration # 통합만 (프로토콜/배포 변경 시)
+```
+
+새 게임 모듈의 테스트 작성 예:
+
+```ts
+import { createMockContext } from '../src/testing/mock-context.js';
+import { makePlayer, makeStartedRoom } from '../src/testing/fixtures.js';
+
+const mock = createMockContext();
+const mod = createMyGameModule(mock.ctx);
+const room = makeStartedRoom(mod, [makePlayer(), makePlayer()]);
+mod.onMessage!(room, player, { t: 'attack', target: 'p_test2' });
+assert.equal(mock.messagesOf('hit')[0].damage, 10);
+```
+
 ## 로드맵 (SaaS화)
 
 - [ ] 게임 모듈을 npm 패키지로 분리 (게임 레포에서 버전 관리, 서버는 런타임에 로드)

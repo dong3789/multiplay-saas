@@ -12,7 +12,9 @@
     "start": "node --import tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test test/*.test.ts"
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node --import tsx --test test/*.unit.test.ts",
+    "test:integration": "node test/smoke.mjs && node test/et-compat.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"
