@@ -4,7 +4,7 @@ import WebSocket from 'ws';
 
 const PORT = 8898;
 const server = spawn('node', ['--import', 'tsx', 'src/index.ts'], {
-  cwd: '/Users/yoon/Projects/multiplay-saas',
+  cwd: new URL('..', import.meta.url).pathname, // 레포 루트 (CI/로컬 무관)
   env: { ...process.env, PORT: String(PORT) },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
