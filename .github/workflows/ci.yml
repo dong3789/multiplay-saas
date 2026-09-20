@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck · Unit · Integration · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (tsc)
+        run: npm run typecheck
+
+      - name: Unit tests (GameModule rules, mock ctx)
+        # 서버 기동 없이 게임 룰 검증 — 역할배정/score/catch/revive/onTick 승패 등 36개
+        run: npm run test:unit
+
+      - name: Integration tests (real server)
+        # smoke: create→join→start→pos→score→catch→resume 12개
+        # et-compat: energy-trail 클라이언트 wire format 호환성 7개
+        run: npm run test:integration
+
+      - name: Build (tsc → dist)
+        run: npm run build
+
+      - name: Smoke-check production build
+        # dist 런타임이 실제로 뜨고 /health가 응답하는지 확인 (Docker 빌드 전 안전망)
+        run: |
+          set -euo pipefail
+          PORT=8791 node dist/index.js &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 25); do
+            curl -fsS http://127.0.0.1:8791/health >/dev/null && break
+            sleep 0.2
+          done
+          curl -fsS http://127.0.0.1:8791/health | grep -q '"ok":true'
+          curl -fsS http://127.0.0.1:8791/health | grep -q 'energy-trail'
